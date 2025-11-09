@@ -38,14 +38,126 @@ Optional knobs such as retry behavior or read preference can also be expressed v
 3. The server binds to `APP_BIND_ADDRESS`. Verify readiness via `curl http://127.0.0.1:3000/health` (or your configured port) once a health endpoint is implemented.
 
 ## API Quick Reference
-- `POST /api/v1/documents/insert-one|insert-many`
-- `POST /api/v1/documents/find-one|find-many`
-- `POST /api/v1/documents/update-one|update-many`
-- `POST /api/v1/documents/replace-one`
-- `POST /api/v1/documents/delete-one|delete-many`
-- `GET /api/v1/collections?database=...`
 
-Each request body must include `database` and `collection`; optional `options` objects follow the respective MongoDB driver structs. Refer to `AGENTS.md` for payload examples and error contracts.
+All JSON requests **must** include `database` and `collection`. Optional `options` maps follow MongoDB driver naming, so fields such as `ordered`, `projection`, `sort`, `upsert`, and `array_filters` behave just like the Rust driver. Request bodies below illustrate the minimum payload necessary for the service to execute an operation.
+
+### Insert
+- `POST /api/v1/documents/insert-one`
+  ```json
+  {
+    "database": "app",
+    "collection": "users",
+    "document": {
+      "email": "quill@example.com",
+      "name": "Quill"
+    },
+    "options": {
+      "ordered": true
+    }
+  }
+  ```
+- `POST /api/v1/documents/insert-many`
+  ```json
+  {
+    "database": "app",
+    "collection": "users",
+    "documents": [
+      { "email": "rocket@example.com" },
+      { "email": "groot@example.com" }
+    ],
+    "options": {
+      "ordered": false
+    }
+  }
+  ```
+
+### Find
+- `POST /api/v1/documents/find-one`
+  ```json
+  {
+    "database": "app",
+    "collection": "users",
+    "filter": { "email": "quill@example.com" },
+    "options": {
+      "projection": { "_id": 0, "email": 1 }
+    }
+  }
+  ```
+- `POST /api/v1/documents/find-many`
+  ```json
+  {
+    "database": "app",
+    "collection": "users",
+    "filter": { "team": "guardians" },
+    "options": {
+      "sort": { "created_at": -1 },
+      "limit": 50,
+      "skip": 0
+    }
+  }
+  ```
+
+### Update & Replace
+- `POST /api/v1/documents/update-one`
+  ```json
+  {
+    "database": "app",
+    "collection": "users",
+    "filter": { "email": "rocket@example.com" },
+    "update": { "$set": { "nickname": "Rocket" } },
+    "options": {
+      "upsert": false
+    }
+  }
+  ```
+- `POST /api/v1/documents/update-many`
+  ```json
+  {
+    "database": "app",
+    "collection": "users",
+    "filter": { "team": "guardians" },
+    "update": { "$set": { "active": true } }
+  }
+  ```
+- `POST /api/v1/documents/replace-one`
+  ```json
+  {
+    "database": "app",
+    "collection": "users",
+    "filter": { "email": "groot@example.com" },
+    "replacement": {
+      "email": "groot@example.com",
+      "name": "Groot",
+      "language": "Flora colossi"
+    },
+    "options": {
+      "upsert": true
+    }
+  }
+  ```
+
+### Delete
+- `POST /api/v1/documents/delete-one`
+  ```json
+  {
+    "database": "app",
+    "collection": "users",
+    "filter": { "email": "quill@example.com" }
+  }
+  ```
+- `POST /api/v1/documents/delete-many`
+  ```json
+  {
+    "database": "app",
+    "collection": "users",
+    "filter": { "team": "guardians" }
+  }
+  ```
+
+### Collections Listing
+- `GET /api/v1/collections?database=app`
+
+Responses return MongoDB driver-shaped payloads (e.g., `{ "inserted_id": ... }`, driver `UpdateResult`, `DeleteResult`, or arrays of documents). See `AGENTS.md` for detailed error contracts and option support.
 
 ## Troubleshooting
 - Ensure MongoDB is reachable from the host running the gateway; driver errors surface as `502` responses with sanitized messages.
