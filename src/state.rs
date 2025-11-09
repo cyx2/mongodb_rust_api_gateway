@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use mongodb::bson::Document;
 use mongodb::Client;
 
@@ -25,22 +27,30 @@ impl AppState {
         &self,
         namespace: &NamespacePayload,
     ) -> Result<mongodb::Collection<Document>, ApiError> {
-        let database = if namespace.database.trim().is_empty() {
-            return Err(ApiError::validation("database must be provided"));
+        let database: Cow<'_, str> = if namespace.database.trim().is_empty() {
+            Cow::Owned(
+                self.default_database
+                    .clone()
+                    .ok_or_else(|| ApiError::validation("database must be provided"))?,
+            )
         } else {
-            namespace.database.trim()
+            Cow::Borrowed(namespace.database.trim())
         };
 
-        let collection = if namespace.collection.trim().is_empty() {
-            return Err(ApiError::validation("collection must be provided"));
+        let collection: Cow<'_, str> = if namespace.collection.trim().is_empty() {
+            Cow::Owned(
+                self.default_collection
+                    .clone()
+                    .ok_or_else(|| ApiError::validation("collection must be provided"))?,
+            )
         } else {
-            namespace.collection.trim()
+            Cow::Borrowed(namespace.collection.trim())
         };
 
         Ok(self
             .client
-            .database(database)
-            .collection::<Document>(collection))
+            .database(&database)
+            .collection::<Document>(&collection))
     }
 }
 
@@ -48,9 +58,11 @@ impl AppState {
 mod tests {
     use super::*;
 
-    #[test]
-    fn collection_requires_namespace_values() {
-        let client = Client::with_uri_str("mongodb://localhost:27017").expect("client");
+    #[tokio::test]
+    async fn collection_requires_namespace_values() {
+        let client = Client::with_uri_str("mongodb://localhost:27017")
+            .await
+            .expect("client");
         let config = Config {
             mongodb_uri: "mongodb://localhost:27017".into(),
             default_database: None,

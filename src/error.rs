@@ -53,18 +53,7 @@ impl ApiError {
         }
     }
 
-    pub fn internal(details: impl Into<String>) -> Self {
-        let correlation_id = Uuid::new_v4().to_string();
-        Self {
-            status: StatusCode::INTERNAL_SERVER_ERROR,
-            body: ErrorResponse {
-                error: "internal_error",
-                details: details.into(),
-                correlation_id: Some(correlation_id),
-            },
-        }
-    }
-
+    #[cfg(test)]
     pub fn status(&self) -> StatusCode {
         self.status
     }

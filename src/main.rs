@@ -56,7 +56,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let app: Router = routes::router(state);
 
     let listener = tokio::net::TcpListener::bind(&config.bind_address).await?;
-    tracing::info!("listening", address = %config.bind_address);
+    tracing::info!("listening on {}", config.bind_address);
     axum::serve(listener, app).await?;
     Ok(())
 }

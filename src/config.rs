@@ -95,6 +95,9 @@ fn parse_optional_u64(key: &'static str) -> Result<Option<u64>, ConfigError> {
 mod tests {
     use super::*;
     use std::env;
+    use std::sync::{Mutex, OnceLock};
+
+    static ENV_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
 
     fn with_env(key: &str, value: &str, f: impl FnOnce()) {
         env::set_var(key, value);
@@ -104,6 +107,7 @@ mod tests {
 
     #[test]
     fn missing_required_variable_fails() {
+        let _guard = ENV_MUTEX.get_or_init(|| Mutex::new(())).lock().unwrap();
         env::remove_var("MONGODB_URI");
         let result = Config::from_env();
         assert!(matches!(
@@ -114,6 +118,7 @@ mod tests {
 
     #[test]
     fn parses_optional_values() {
+        let _guard = ENV_MUTEX.get_or_init(|| Mutex::new(())).lock().unwrap();
         env::set_var("MONGODB_URI", "mongodb://localhost:27017");
         with_env("MONGODB_POOL_MIN_SIZE", "5", || {
             with_env("MONGODB_CONNECT_TIMEOUT_MS", "1000", || {

@@ -266,10 +266,13 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
+    use mongodb::Client;
     use tower::ServiceExt;
 
-    fn test_state() -> AppState {
-        let client = Client::with_uri_str("mongodb://localhost:27017").expect("client");
+    async fn test_state() -> AppState {
+        let client = Client::with_uri_str("mongodb://localhost:27017")
+            .await
+            .expect("client");
         let config = crate::config::Config {
             mongodb_uri: "mongodb://localhost:27017".into(),
             default_database: None,
@@ -286,7 +289,7 @@ mod tests {
 
     #[tokio::test]
     async fn insert_many_requires_documents() {
-        let app = router(test_state());
+        let app = router(test_state().await);
         let payload = serde_json::json!({
             "database": "app",
             "collection": "users",
