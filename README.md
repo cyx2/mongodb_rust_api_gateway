@@ -159,6 +159,70 @@ All JSON requests **must** include `database` and `collection`. Optional `option
 
 Responses return MongoDB driver-shaped payloads (e.g., `{ "inserted_id": ... }`, driver `UpdateResult`, `DeleteResult`, or arrays of documents). See `AGENTS.md` for detailed error contracts and option support.
 
+## Testing
+
+The project includes comprehensive unit and integration tests.
+
+### Running Tests
+
+**Unit Tests** (no MongoDB required):
+```bash
+cargo test
+```
+
+**Integration Tests** (require MongoDB):
+```bash
+cargo test -- --ignored
+```
+
+**All Tests** (unit + integration):
+```bash
+cargo test -- --ignored
+```
+
+### Test Configuration
+
+Integration tests use the `MONGODB_TEST_URI` environment variable (loaded from `.env` file):
+- Default: `mongodb://localhost:27017`
+- Can be set in `.env` file: `MONGODB_TEST_URI="mongodb+srv://..."`
+
+### Test Options
+
+**Run specific tests:**
+```bash
+cargo test test_name_pattern
+cargo test --test integration_test -- --ignored test_name_pattern
+```
+
+**Show test output:**
+```bash
+cargo test -- --nocapture
+```
+
+**Run tests in parallel (default) or sequentially:**
+```bash
+cargo test -- --test-threads=1  # Sequential
+```
+
+**Run only ignored tests:**
+```bash
+cargo test -- --ignored
+```
+
+**Skip ignored tests (default):**
+```bash
+cargo test  # Only runs non-ignored tests
+```
+
+### Test Cleanup
+
+After running integration tests, clean up test databases:
+```bash
+cargo test --test integration_test -- --ignored --nocapture cleanup::cleanup_test_databases
+```
+
+For detailed testing documentation, see [`tests/README.md`](tests/README.md).
+
 ## Troubleshooting
 - Ensure MongoDB is reachable from the host running the gateway; driver errors surface as `502` responses with sanitized messages.
 - Missing or invalid env vars cause a startup failure with actionable log output.

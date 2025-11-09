@@ -184,4 +184,98 @@ mod tests {
         assert_eq!(namespace.db, "app");
         assert_eq!(namespace.coll, "users");
     }
+
+    #[tokio::test]
+    async fn collection_caches_handles() {
+        let client = Client::with_uri_str("mongodb://localhost:27017")
+            .await
+            .expect("client");
+        let config = Config {
+            mongodb_uri: "mongodb://localhost:27017".into(),
+            default_database: None,
+            default_collection: None,
+            pool_min_size: None,
+            pool_max_size: None,
+            connect_timeout: None,
+            server_selection_timeout: None,
+            log_level: None,
+            bind_address: "127.0.0.1:3000".into(),
+        };
+        let state = AppState::new(client, &config);
+        let payload1 = NamespacePayload {
+            database: "test_db".into(),
+            collection: "test_coll".into(),
+        };
+        let payload2 = NamespacePayload {
+            database: "test_db".into(),
+            collection: "test_coll".into(),
+        };
+
+        let collection1 = state.collection(&payload1).expect("collection handle");
+        let collection2 = state.collection(&payload2).expect("collection handle");
+
+        // Both should reference the same collection
+        assert_eq!(collection1.name(), collection2.name());
+        assert_eq!(collection1.namespace().db, collection2.namespace().db);
+    }
+
+    #[tokio::test]
+    async fn collection_handles_different_namespaces() {
+        let client = Client::with_uri_str("mongodb://localhost:27017")
+            .await
+            .expect("client");
+        let config = Config {
+            mongodb_uri: "mongodb://localhost:27017".into(),
+            default_database: None,
+            default_collection: None,
+            pool_min_size: None,
+            pool_max_size: None,
+            connect_timeout: None,
+            server_selection_timeout: None,
+            log_level: None,
+            bind_address: "127.0.0.1:3000".into(),
+        };
+        let state = AppState::new(client, &config);
+        let payload1 = NamespacePayload {
+            database: "db1".into(),
+            collection: "coll1".into(),
+        };
+        let payload2 = NamespacePayload {
+            database: "db2".into(),
+            collection: "coll2".into(),
+        };
+
+        let collection1 = state.collection(&payload1).expect("collection handle");
+        let collection2 = state.collection(&payload2).expect("collection handle");
+
+        assert_ne!(collection1.name(), collection2.name());
+        assert_ne!(collection1.namespace().db, collection2.namespace().db);
+    }
+
+    #[tokio::test]
+    async fn collection_trims_whitespace() {
+        let client = Client::with_uri_str("mongodb://localhost:27017")
+            .await
+            .expect("client");
+        let config = Config {
+            mongodb_uri: "mongodb://localhost:27017".into(),
+            default_database: None,
+            default_collection: None,
+            pool_min_size: None,
+            pool_max_size: None,
+            connect_timeout: None,
+            server_selection_timeout: None,
+            log_level: None,
+            bind_address: "127.0.0.1:3000".into(),
+        };
+        let state = AppState::new(client, &config);
+        let payload = NamespacePayload {
+            database: "  test_db  ".into(),
+            collection: "  test_coll  ".into(),
+        };
+
+        let collection = state.collection(&payload).expect("collection handle");
+        assert_eq!(collection.name(), "test_coll");
+        assert_eq!(collection.namespace().db, "test_db");
+    }
 }

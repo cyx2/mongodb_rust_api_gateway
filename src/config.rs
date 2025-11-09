@@ -108,24 +108,125 @@ mod tests {
     #[test]
     fn missing_required_variable_fails() {
         let _guard = ENV_MUTEX.get_or_init(|| Mutex::new(())).lock().unwrap();
+        let old_uri = env::var("MONGODB_URI").ok();
         env::remove_var("MONGODB_URI");
         let result = Config::from_env();
         assert!(matches!(
             result,
             Err(ConfigError::MissingEnv("MONGODB_URI"))
         ));
+        if let Some(uri) = old_uri {
+            env::set_var("MONGODB_URI", uri);
+        }
     }
 
     #[test]
     fn parses_optional_values() {
         let _guard = ENV_MUTEX.get_or_init(|| Mutex::new(())).lock().unwrap();
         env::set_var("MONGODB_URI", "mongodb://localhost:27017");
+        env::remove_var("MONGODB_POOL_MIN_SIZE");
+        env::remove_var("MONGODB_CONNECT_TIMEOUT_MS");
         with_env("MONGODB_POOL_MIN_SIZE", "5", || {
             with_env("MONGODB_CONNECT_TIMEOUT_MS", "1000", || {
                 let config = Config::from_env().expect("config");
                 assert_eq!(config.pool_min_size, Some(5));
                 assert_eq!(config.connect_timeout, Some(Duration::from_millis(1000)));
             });
+        });
+        env::remove_var("MONGODB_URI");
+    }
+
+    #[test]
+    fn rejects_invalid_u32_values() {
+        let _guard = ENV_MUTEX.get_or_init(|| Mutex::new(())).lock().unwrap();
+        env::set_var("MONGODB_URI", "mongodb://localhost:27017");
+        env::remove_var("MONGODB_POOL_MIN_SIZE");
+        with_env("MONGODB_POOL_MIN_SIZE", "not_a_number", || {
+            let result = Config::from_env();
+            assert!(matches!(
+                result,
+                Err(ConfigError::InvalidEnv("MONGODB_POOL_MIN_SIZE", _))
+            ));
+        });
+        env::remove_var("MONGODB_URI");
+    }
+
+    #[test]
+    fn rejects_invalid_duration_values() {
+        let _guard = ENV_MUTEX.get_or_init(|| Mutex::new(())).lock().unwrap();
+        env::set_var("MONGODB_URI", "mongodb://localhost:27017");
+        env::remove_var("MONGODB_CONNECT_TIMEOUT_MS");
+        with_env("MONGODB_CONNECT_TIMEOUT_MS", "invalid", || {
+            let result = Config::from_env();
+            assert!(matches!(
+                result,
+                Err(ConfigError::InvalidEnv("MONGODB_CONNECT_TIMEOUT_MS", _))
+            ));
+        });
+        env::remove_var("MONGODB_URI");
+    }
+
+    #[test]
+    fn filters_empty_strings_from_optional_vars() {
+        let _guard = ENV_MUTEX.get_or_init(|| Mutex::new(())).lock().unwrap();
+        env::set_var("MONGODB_URI", "mongodb://localhost:27017");
+        env::remove_var("MONGODB_DEFAULT_DATABASE");
+        env::remove_var("MONGODB_DEFAULT_COLLECTION");
+        with_env("MONGODB_DEFAULT_DATABASE", "", || {
+            with_env("MONGODB_DEFAULT_COLLECTION", "", || {
+                let config = Config::from_env().expect("config");
+                assert_eq!(config.default_database, None);
+                assert_eq!(config.default_collection, None);
+            });
+        });
+        env::remove_var("MONGODB_URI");
+    }
+
+    #[test]
+    fn uses_default_bind_address_when_not_set() {
+        let _guard = ENV_MUTEX.get_or_init(|| Mutex::new(())).lock().unwrap();
+        env::set_var("MONGODB_URI", "mongodb://localhost:27017");
+        let old_bind = env::var("APP_BIND_ADDRESS").ok();
+        env::remove_var("APP_BIND_ADDRESS");
+        let config = Config::from_env().expect("config");
+        assert_eq!(config.bind_address, "127.0.0.1:3000");
+        if let Some(addr) = old_bind {
+            env::set_var("APP_BIND_ADDRESS", addr);
+        }
+        env::remove_var("MONGODB_URI");
+    }
+
+    #[test]
+    fn parses_all_optional_pool_settings() {
+        let _guard = ENV_MUTEX.get_or_init(|| Mutex::new(())).lock().unwrap();
+        env::set_var("MONGODB_URI", "mongodb://localhost:27017");
+        env::remove_var("MONGODB_POOL_MIN_SIZE");
+        env::remove_var("MONGODB_POOL_MAX_SIZE");
+        env::remove_var("MONGODB_SERVER_SELECTION_TIMEOUT_MS");
+        with_env("MONGODB_POOL_MIN_SIZE", "10", || {
+            with_env("MONGODB_POOL_MAX_SIZE", "50", || {
+                with_env("MONGODB_SERVER_SELECTION_TIMEOUT_MS", "5000", || {
+                    let config = Config::from_env().expect("config");
+                    assert_eq!(config.pool_min_size, Some(10));
+                    assert_eq!(config.pool_max_size, Some(50));
+                    assert_eq!(
+                        config.server_selection_timeout,
+                        Some(Duration::from_millis(5000))
+                    );
+                });
+            });
+        });
+        env::remove_var("MONGODB_URI");
+    }
+
+    #[test]
+    fn parses_log_level() {
+        let _guard = ENV_MUTEX.get_or_init(|| Mutex::new(())).lock().unwrap();
+        env::set_var("MONGODB_URI", "mongodb://localhost:27017");
+        env::remove_var("LOG_LEVEL");
+        with_env("LOG_LEVEL", "debug", || {
+            let config = Config::from_env().expect("config");
+            assert_eq!(config.log_level, Some("debug".to_string()));
         });
         env::remove_var("MONGODB_URI");
     }

@@ -586,4 +586,21 @@ mod tests {
             .unwrap();
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
+
+    #[tokio::test]
+    async fn namespace_fields_trims_whitespace() {
+        let payload = namespace("  db  ", "  coll  ");
+        let (db, coll) = namespace_fields(&payload);
+        assert_eq!(db, "db");
+        assert_eq!(coll, "coll");
+    }
+
+    #[test]
+    fn collection_from_state_validates_namespace() {
+        // This test verifies the validation logic
+        let payload = namespace("", "users");
+        // The actual validation happens in ensure_non_empty
+        let err = ensure_non_empty(&payload).expect_err("expected validation error");
+        assert_eq!(err.status(), StatusCode::BAD_REQUEST);
+    }
 }

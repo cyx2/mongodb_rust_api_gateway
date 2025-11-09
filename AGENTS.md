@@ -84,7 +84,52 @@ Crate scaffolded via `cargo init`; keep sources in `src/`, extra binaries under 
 Use Rust defaults (4 spaces, snake_case functions/modules, CamelCase types, SCREAMING_SNAKE_CASE consts). Split files when >300 lines or multi-concern. Avoid `todo!()` in merged code. Derive `Debug`, `Clone`, `PartialEq` on domain structs when useful for tests.
 
 ### Testing Guidelines
-Prefer inline unit tests under `#[cfg(test)]`; keep integration suites in `tests/`. Name cases after behaviors (e.g., `serializes_minimal_header`). Run `cargo test`, `cargo test -- --ignored`, and `cargo clippy` locally/CI. Share fixtures via `tests/common/mod.rs`.
+
+**Test Structure:**
+- Unit tests: Inline tests under `#[cfg(test)]` in each module
+- Integration tests: Separate test files in `tests/` directory
+- Test helpers: Shared utilities in `tests/common/mod.rs`
+
+**Test Naming:**
+- Name test functions after behaviors (e.g., `serializes_minimal_header`, `rejects_invalid_u32_values`)
+- Use descriptive names that explain what is being tested
+
+**Running Tests:**
+
+**Unit Tests** (no external dependencies):
+```bash
+cargo test                    # Run all unit tests
+cargo test --lib              # Run only library unit tests
+cargo test module_name::tests # Run tests in a specific module
+```
+
+**Integration Tests** (require MongoDB):
+```bash
+cargo test -- --ignored                              # Run all integration tests
+cargo test --test integration_test -- --ignored     # Run integration test suite
+cargo test --test integration_test -- --ignored test_name  # Run specific test
+```
+
+**Test Options:**
+```bash
+cargo test -- --nocapture          # Show stdout/stderr output
+cargo test -- --test-threads=1     # Run tests sequentially
+cargo test -- --ignored            # Include tests marked with #[ignore]
+cargo test -- --no-fail-fast       # Continue running after failures
+cargo test -- --quiet              # Minimal output (one char per test)
+```
+
+**Test Configuration:**
+- Integration tests use `MONGODB_TEST_URI` from `.env` file (defaults to `mongodb://localhost:27017`)
+- Test databases follow pattern `test_db_*` and can be cleaned up after runs
+- See `tests/README.md` for detailed integration test setup and MongoDB configuration
+
+**Pre-commit Checklist:**
+- Run `cargo fmt` to ensure formatting
+- Run `cargo clippy -- -D warnings` to catch linting issues
+- Run `cargo test` to verify unit tests pass
+- Run `cargo test -- --ignored` to verify integration tests pass (if MongoDB available)
+- Run cleanup: `cargo test --test integration_test -- --ignored cleanup::cleanup_test_databases`
 
 ### Commit & PR Habits
 Concise present-tense summaries (`init: scaffold cargo crate`), reference issues when possible (`fix: handle empty payload (#42)`). Each PR should outline intent, testing proof (`cargo test`, `cargo fmt`), and follow-up work. Attach screenshots/CLI transcripts for user-facing changes. Keep PRs focused and rebase onto `main` before requesting review.

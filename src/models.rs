@@ -186,4 +186,19 @@ mod tests {
             vec![Bson::Int32(0), Bson::Int32(1), Bson::Int32(2)]
         );
     }
+
+    #[test]
+    fn update_response_handles_no_upserted_id() {
+        let response = UpdateResponse::from_parts(5, 3, None);
+        assert_eq!(response.matched_count, 5);
+        assert_eq!(response.modified_count, 3);
+        assert_eq!(response.upserted_id, None);
+    }
+
+    #[test]
+    fn insert_many_response_handles_empty_ids() {
+        let inserted_ids: HashMap<usize, Bson> = HashMap::new();
+        let response = InsertManyResponse::from_inserted_ids(inserted_ids);
+        assert_eq!(response.inserted_ids, Vec::<Bson>::new());
+    }
 }

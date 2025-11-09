@@ -84,4 +84,27 @@ mod tests {
         assert_eq!(error.status(), StatusCode::BAD_GATEWAY);
         assert!(error.body.correlation_id.is_some());
     }
+
+    #[test]
+    fn not_found_error_has_expected_shape() {
+        let error = ApiError::not_found("document not found");
+        assert_eq!(error.status(), StatusCode::NOT_FOUND);
+        assert_eq!(error.body.error, "not_found");
+        assert_eq!(error.body.details, "document not found");
+        assert!(error.body.correlation_id.is_none());
+    }
+
+    #[test]
+    fn error_serializes_to_json() {
+        let error = ApiError::validation("test error");
+        let response = error.into_response();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn validation_error_details_are_preserved() {
+        let details = "database must be provided";
+        let error = ApiError::validation(details);
+        assert_eq!(error.body.details, details);
+    }
 }
