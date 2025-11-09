@@ -84,4 +84,32 @@ mod tests {
             .expect_err("expected validation error");
         assert_eq!(err.status().as_u16(), 400);
     }
+
+    #[tokio::test]
+    async fn collection_uses_defaults_for_missing_namespace_fields() {
+        let client = Client::with_uri_str("mongodb://localhost:27017")
+            .await
+            .expect("client");
+        let config = Config {
+            mongodb_uri: "mongodb://localhost:27017".into(),
+            default_database: Some("app".into()),
+            default_collection: Some("users".into()),
+            pool_min_size: None,
+            pool_max_size: None,
+            connect_timeout: None,
+            server_selection_timeout: None,
+            log_level: None,
+            bind_address: "127.0.0.1:3000".into(),
+        };
+        let state = AppState::new(client, &config);
+        let payload = NamespacePayload {
+            database: "   ".into(),
+            collection: "   ".into(),
+        };
+
+        let collection = state.collection(&payload).expect("collection handle");
+        let namespace = collection.namespace();
+        assert_eq!(namespace.db, "app");
+        assert_eq!(namespace.coll, "users");
+    }
 }

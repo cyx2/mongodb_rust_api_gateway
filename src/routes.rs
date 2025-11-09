@@ -370,6 +370,48 @@ mod tests {
     use mongodb::Client;
     use tower::ServiceExt;
 
+    fn namespace(database: &str, collection: &str) -> NamespacePayload {
+        NamespacePayload {
+            database: database.into(),
+            collection: collection.into(),
+        }
+    }
+
+    #[test]
+    fn ensure_non_empty_accepts_populated_namespace() {
+        let payload = namespace("app", "users");
+        assert!(ensure_non_empty(&payload).is_ok());
+    }
+
+    #[test]
+    fn ensure_non_empty_rejects_blank_database() {
+        let payload = namespace("   ", "users");
+        let err = ensure_non_empty(&payload).expect_err("expected validation error");
+        assert_eq!(err.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn ensure_non_empty_rejects_blank_collection() {
+        let payload = namespace("app", "   ");
+        let err = ensure_non_empty(&payload).expect_err("expected validation error");
+        assert_eq!(err.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn log_request_failure_preserves_error() {
+        let error = ApiError::validation("oops");
+        let status = error.status();
+        let returned = log_request_failure("/test", error);
+        assert_eq!(returned.status(), status);
+    }
+
+    #[test]
+    fn map_driver_error_wraps_mongodb_errors() {
+        let driver_error = mongodb::error::Error::custom("driver boom");
+        let api_error = map_driver_error(driver_error);
+        assert_eq!(api_error.status(), StatusCode::BAD_GATEWAY);
+    }
+
     async fn test_state() -> AppState {
         let client = Client::with_uri_str("mongodb://localhost:27017")
             .await
@@ -386,6 +428,23 @@ mod tests {
             bind_address: "127.0.0.1:3000".into(),
         };
         AppState::new(client, &config)
+    }
+
+    #[tokio::test]
+    async fn collection_from_state_requires_database() {
+        let state = test_state().await;
+        let payload = namespace("   ", "users");
+        let err =
+            collection_from_state(&state, &payload).expect_err("expected missing database error");
+        assert_eq!(err.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn collection_from_state_returns_collection_handle() {
+        let state = test_state().await;
+        let payload = namespace("app", "users");
+        let collection = collection_from_state(&state, &payload).expect("collection handle");
+        assert_eq!(collection.name(), "users");
     }
 
     #[tokio::test]

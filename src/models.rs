@@ -127,20 +127,63 @@ pub struct CollectionsResponse {
 
 impl UpdateResponse {
     pub fn from_update_result(result: mongodb::results::UpdateResult) -> Self {
+        Self::from_parts(
+            result.matched_count,
+            result.modified_count,
+            result.upserted_id,
+        )
+    }
+
+    fn from_parts(matched_count: u64, modified_count: u64, upserted_id: Option<Bson>) -> Self {
         Self {
-            matched_count: result.matched_count,
-            modified_count: result.modified_count,
-            upserted_id: result.upserted_id,
+            matched_count,
+            modified_count,
+            upserted_id,
         }
     }
 }
 
 impl InsertManyResponse {
     pub fn from_result(result: mongodb::results::InsertManyResult) -> Self {
-        let mut ids: Vec<(usize, Bson)> = result.inserted_ids.into_iter().collect();
+        Self::from_inserted_ids(result.inserted_ids)
+    }
+
+    fn from_inserted_ids(inserted_ids: std::collections::HashMap<usize, Bson>) -> Self {
+        let mut ids: Vec<(usize, Bson)> = inserted_ids.into_iter().collect();
         ids.sort_by_key(|(index, _)| *index);
         Self {
             inserted_ids: ids.into_iter().map(|(_, id)| id).collect(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mongodb::bson::Bson;
+    use std::collections::HashMap;
+
+    #[test]
+    fn update_response_reflects_update_result_fields() {
+        let response = UpdateResponse::from_parts(3, 2, Some(Bson::Int32(42)));
+
+        assert_eq!(response.matched_count, 3);
+        assert_eq!(response.modified_count, 2);
+        assert_eq!(response.upserted_id, Some(Bson::Int32(42)));
+    }
+
+    #[test]
+    fn insert_many_response_sorts_inserted_ids() {
+        let mut inserted_ids: HashMap<usize, Bson> = HashMap::new();
+        inserted_ids.insert(2, Bson::Int32(2));
+        inserted_ids.insert(0, Bson::Int32(0));
+        inserted_ids.insert(1, Bson::Int32(1));
+
+        let response = InsertManyResponse::from_inserted_ids(inserted_ids);
+
+        assert_eq!(
+            response.inserted_ids,
+            vec![Bson::Int32(0), Bson::Int32(1), Bson::Int32(2)]
+        );
     }
 }
