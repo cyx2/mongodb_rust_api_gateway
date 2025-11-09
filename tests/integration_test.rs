@@ -6,9 +6,19 @@ use hello_rust::routes;
 use serde_json::json;
 use tower::ServiceExt;
 
+// Macro to skip tests if MongoDB is not available
+macro_rules! skip_if_no_mongodb {
+    () => {
+        if !common::mongodb_available().await {
+            eprintln!("Skipping test: MongoDB not available");
+            return;
+        }
+    };
+}
+
 #[tokio::test]
-#[ignore] // Requires MongoDB to be running
 async fn test_insert_one_and_find_one() {
+    skip_if_no_mongodb!();
     let state = common::test_state().await;
     let app = routes::router(state);
     let db = common::unique_database();
@@ -79,8 +89,8 @@ async fn test_insert_one_and_find_one() {
 }
 
 #[tokio::test]
-#[ignore] // Requires MongoDB to be running
 async fn test_insert_many_and_find_many() {
+    skip_if_no_mongodb!();
     let state = common::test_state().await;
     let app = routes::router(state);
     let db = common::unique_database();
@@ -145,8 +155,8 @@ async fn test_insert_many_and_find_many() {
 }
 
 #[tokio::test]
-#[ignore] // Requires MongoDB to be running
 async fn test_find_one_returns_404_when_not_found() {
+    skip_if_no_mongodb!();
     let state = common::test_state().await;
     let app = routes::router(state);
     let db = common::unique_database();
@@ -176,8 +186,8 @@ async fn test_find_one_returns_404_when_not_found() {
 }
 
 #[tokio::test]
-#[ignore] // Requires MongoDB to be running
 async fn test_update_one() {
+    skip_if_no_mongodb!();
     let state = common::test_state().await;
     let app = routes::router(state);
     let db = common::unique_database();
@@ -273,8 +283,8 @@ async fn test_update_one() {
 }
 
 #[tokio::test]
-#[ignore] // Requires MongoDB to be running
 async fn test_update_many() {
+    skip_if_no_mongodb!();
     let state = common::test_state().await;
     let app = routes::router(state);
     let db = common::unique_database();
@@ -340,8 +350,8 @@ async fn test_update_many() {
 }
 
 #[tokio::test]
-#[ignore] // Requires MongoDB to be running
 async fn test_replace_one() {
+    skip_if_no_mongodb!();
     let state = common::test_state().await;
     let app = routes::router(state);
     let db = common::unique_database();
@@ -436,8 +446,8 @@ async fn test_replace_one() {
 }
 
 #[tokio::test]
-#[ignore] // Requires MongoDB to be running
 async fn test_delete_one() {
+    skip_if_no_mongodb!();
     let state = common::test_state().await;
     let app = routes::router(state);
     let db = common::unique_database();
@@ -524,8 +534,8 @@ async fn test_delete_one() {
 }
 
 #[tokio::test]
-#[ignore] // Requires MongoDB to be running
 async fn test_delete_many() {
+    skip_if_no_mongodb!();
     let state = common::test_state().await;
     let app = routes::router(state);
     let db = common::unique_database();
@@ -619,8 +629,8 @@ async fn test_delete_many() {
 }
 
 #[tokio::test]
-#[ignore] // Requires MongoDB to be running
 async fn test_delete_one_returns_404_when_not_found() {
+    skip_if_no_mongodb!();
     let state = common::test_state().await;
     let app = routes::router(state);
     let db = common::unique_database();
@@ -650,8 +660,8 @@ async fn test_delete_one_returns_404_when_not_found() {
 }
 
 #[tokio::test]
-#[ignore] // Requires MongoDB to be running
 async fn test_update_one_returns_404_when_not_found() {
+    skip_if_no_mongodb!();
     let state = common::test_state().await;
     let app = routes::router(state);
     let db = common::unique_database();
@@ -686,8 +696,8 @@ async fn test_update_one_returns_404_when_not_found() {
 }
 
 #[tokio::test]
-#[ignore] // Requires MongoDB to be running
 async fn test_replace_one_returns_404_when_not_found() {
+    skip_if_no_mongodb!();
     let state = common::test_state().await;
     let app = routes::router(state);
     let db = common::unique_database();
@@ -720,8 +730,8 @@ async fn test_replace_one_returns_404_when_not_found() {
 }
 
 #[tokio::test]
-#[ignore] // Requires MongoDB to be running
 async fn test_validation_errors_for_missing_database() {
+    skip_if_no_mongodb!();
     let state = common::test_state().await;
     let app = routes::router(state);
 
@@ -747,8 +757,8 @@ async fn test_validation_errors_for_missing_database() {
 }
 
 #[tokio::test]
-#[ignore] // Requires MongoDB to be running
 async fn test_validation_errors_for_missing_collection() {
+    skip_if_no_mongodb!();
     let state = common::test_state().await;
     let app = routes::router(state);
 
@@ -774,8 +784,8 @@ async fn test_validation_errors_for_missing_collection() {
 }
 
 #[tokio::test]
-#[ignore] // Requires MongoDB to be running
 async fn test_list_collections() {
+    skip_if_no_mongodb!();
     let state = common::test_state().await;
     let app = routes::router(state);
     let db = common::unique_database();
@@ -821,8 +831,8 @@ async fn test_list_collections() {
 }
 
 #[tokio::test]
-#[ignore] // Requires MongoDB to be running
 async fn test_list_collections_requires_database() {
+    skip_if_no_mongodb!();
     let state = common::test_state().await;
     let app = routes::router(state);
 
@@ -841,8 +851,8 @@ async fn test_list_collections_requires_database() {
 }
 
 #[tokio::test]
-#[ignore] // Requires MongoDB to be running
 async fn test_find_many_with_options() {
+    skip_if_no_mongodb!();
     let state = common::test_state().await;
     let app = routes::router(state);
     let db = common::unique_database();
@@ -905,8 +915,8 @@ async fn test_find_many_with_options() {
 // Cleanup test - runs last to clean up test databases
 // Named with 'zzz' prefix to ensure it runs last when tests execute sequentially
 #[tokio::test]
-#[ignore] // Requires MongoDB to be running
 async fn zzz_cleanup_test_databases() {
+    skip_if_no_mongodb!();
     // Run cleanup to remove test databases created during test runs
     // This test should run last - use --test-threads=1 to ensure sequential execution
     common::cleanup_test_databases().await;

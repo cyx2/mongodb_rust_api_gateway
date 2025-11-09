@@ -1,6 +1,6 @@
 # Request Logging Architecture
 
-This document captures the structure and rationale behind the per-request logging that now wraps every MongoDB gateway endpoint.
+This document captures the structure and rationale behind the per-request logging that wraps every MongoDB gateway endpoint. It serves as both a reference for understanding the current implementation and a guide for extending logging in the future.
 
 ## Objectives
 
@@ -59,3 +59,110 @@ The logging scheme provides a balanced trade-off between observability and noise
 - Because the helpers avoid capturing references to the `AppState` or MongoDB client, there is no risk of accidental data cloning or contention in the logging path.
 
 This documentation should be reviewed alongside the route module when introducing new endpoints to ensure future work continues to conform to the established logging contract.
+
+## Log Format Examples
+
+### Successful Request Log
+```
+[INFO] http: request_received endpoint=/api/v1/documents/insert-one request=InsertOneRequest { database: "app", collection: "users", document: {...}, options: None }
+[INFO] http: request_success endpoint=/api/v1/documents/insert-one status=200 response=InsertOneResponse { inserted_id: "507f1f77bcf86cd799439011" }
+```
+
+### Failed Request Log
+```
+[INFO] http: request_received endpoint=/api/v1/documents/find-one request=FindOneRequest { database: "app", collection: "users", filter: {...}, options: None }
+[WARN] http: request_failure endpoint=/api/v1/documents/find-one status=404 error=ApiError::NotFound { details: "Document not found", correlation_id: "abc123" }
+```
+
+## Log Levels
+
+- **`info`**: Normal request/response flow (receive, success)
+- **`warn`**: Error conditions (validation failures, not found, MongoDB errors)
+- **`error`**: Reserved for unexpected panics or critical system failures (not currently used)
+- **`debug`**: Detailed tracing information (can be enabled via `LOG_LEVEL=debug`)
+- **`trace`**: Very verbose tracing (can be enabled via `LOG_LEVEL=trace`)
+
+## Configuration
+
+Logging is configured via the `LOG_LEVEL` environment variable:
+- Default: `info` (shows request/receive/success/failure logs)
+- `debug`: Includes additional tracing information
+- `trace`: Maximum verbosity
+- `warn`: Only warnings and errors
+- `error`: Only errors
+
+Set in `.env` file:
+```bash
+LOG_LEVEL=info
+```
+
+## Best Practices
+
+### When Adding New Endpoints
+1. Always use the three logging helpers (`log_request_received`, `log_request_success`, `log_request_failure`)
+2. Call `log_request_received` immediately after extracting the request body
+3. Call `log_request_success` before returning successful responses
+4. Use `log_request_failure` in all error paths via `map_err`
+5. Ensure request/response types derive `Debug` for clean log output
+
+### Logging Sensitive Data
+- **Never log:** Passwords, API keys, tokens, full connection strings
+- **Sanitize:** MongoDB connection strings should be logged with credentials masked
+- **Filter:** Consider adding log filtering middleware for production to redact sensitive fields
+
+### Performance Considerations
+- Structured logging has minimal overhead
+- Use appropriate log levels in production (`warn` or `error`)
+- Avoid logging extremely large payloads (consider truncation for large documents)
+- Correlation IDs enable efficient log aggregation and tracing
+
+## Integration with Log Aggregation
+
+The structured logging format is designed to work with log aggregation systems:
+
+### JSON Format (Future Enhancement)
+Consider configuring `tracing_subscriber` to output JSON format:
+```rust
+tracing_subscriber::fmt()
+    .json()
+    .init();
+```
+
+This enables:
+- Easy parsing by log aggregation tools (ELK, Splunk, Datadog, etc.)
+- Structured querying and filtering
+- Correlation ID-based trace reconstruction
+
+### Correlation IDs
+Each error response includes a `correlation_id` that can be used to:
+- Trace a request through multiple services
+- Correlate logs with error responses
+- Debug production issues efficiently
+
+## Troubleshooting
+
+### Logs Not Appearing
+- Check `LOG_LEVEL` environment variable is set correctly
+- Verify `tracing_subscriber` is initialized in `main.rs`
+- Ensure logs aren't being filtered by log aggregation system
+
+### Too Much Log Noise
+- Reduce `LOG_LEVEL` to `warn` or `error` in production
+- Consider filtering specific endpoints if needed
+- Review log output format and adjust verbosity
+
+### Missing Context
+- Ensure all handlers use the logging helpers
+- Check that request/response types derive `Debug`
+- Verify endpoint names are consistent across logs
+
+## Future Enhancements
+
+Potential improvements to consider:
+- [ ] JSON log format for better aggregation
+- [ ] Request ID middleware for automatic correlation ID generation
+- [ ] Log sampling for high-traffic endpoints
+- [ ] Structured fields for better querying (user_id, database, collection, etc.)
+- [ ] Log filtering middleware for sensitive data redaction
+- [ ] Metrics integration (request counts, latencies, error rates)
+- [ ] Distributed tracing support (OpenTelemetry, Jaeger, etc.)

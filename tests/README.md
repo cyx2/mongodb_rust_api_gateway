@@ -9,19 +9,27 @@ Unit tests are located inline in source files under `#[cfg(test)]` modules. They
 
 **Run unit tests:**
 ```bash
-cargo test                    # All unit tests
 cargo test --lib              # Only library unit tests
 cargo test module_name::tests # Tests in specific module
 ```
 
 ### Integration Tests
-Integration tests are in the `tests/` directory and require MongoDB to be running. They test the full API gateway functionality end-to-end.
+Integration tests are in the `tests/` directory and require MongoDB to be running. They test the full API gateway functionality end-to-end. Integration tests automatically skip gracefully if MongoDB is not available.
 
 **Run integration tests:**
 ```bash
-cargo test -- --ignored                              # All integration tests
-cargo test --test integration_test -- --ignored     # Integration test suite
+cargo test --tests                              # All integration tests
+cargo test --test integration_test              # Integration test suite
 ```
+
+### Running All Tests
+
+**Recommended - Run everything:**
+```bash
+cargo test
+```
+
+This runs all unit and integration tests. Integration tests automatically skip if MongoDB is not available, so this command is safe to run without MongoDB.
 
 ## Integration Test Setup
 
@@ -52,12 +60,12 @@ If `MONGODB_TEST_URI` is not set, tests default to `mongodb://localhost:27017`.
 
 3. Wait a few seconds for MongoDB to start, then run the tests:
    ```bash
-   cargo test -- --ignored
+   cargo test --tests
    ```
    
    Or specify a custom MongoDB URI:
    ```bash
-   MONGODB_TEST_URI="mongodb://localhost:27017" cargo test -- --ignored
+   MONGODB_TEST_URI="mongodb://localhost:27017" cargo test --tests
    ```
 
 4. To stop MongoDB when done:
@@ -85,7 +93,7 @@ If `MONGODB_TEST_URI` is not set, tests default to `mongodb://localhost:27017`.
 
 3. Run the tests:
    ```bash
-   cargo test -- --ignored
+   cargo test --tests
    ```
 
 4. To stop MongoDB:
@@ -104,7 +112,7 @@ If you have MongoDB installed system-wide:
 
 2. Run the tests:
    ```bash
-   cargo test -- --ignored
+   cargo test --tests
    ```
 
 ## Verifying MongoDB is Running
@@ -123,34 +131,34 @@ mongosh --eval "db.adminCommand('ping')"
 
 To run a specific integration test:
 ```bash
-cargo test --test integration_test -- --ignored test_insert_one_and_find_one
+cargo test --test integration_test test_insert_one_and_find_one
 ```
 
 With a custom MongoDB URI:
 ```bash
-MONGODB_TEST_URI="mongodb://localhost:27017" cargo test --test integration_test -- --ignored test_insert_one_and_find_one
+MONGODB_TEST_URI="mongodb://localhost:27017" cargo test --test integration_test test_insert_one_and_find_one
 ```
 
 ## Examples
 
 Run tests against a local MongoDB:
 ```bash
-cargo test -- --ignored
+cargo test --tests
 ```
 
 Run tests against a remote MongoDB:
 ```bash
-MONGODB_TEST_URI="mongodb://user:pass@remote-host:27017" cargo test -- --ignored
+MONGODB_TEST_URI="mongodb://user:pass@remote-host:27017" cargo test --tests
 ```
 
 Run tests against MongoDB Atlas:
 ```bash
-MONGODB_TEST_URI="mongodb+srv://user:pass@cluster.mongodb.net" cargo test -- --ignored
+MONGODB_TEST_URI="mongodb+srv://user:pass@cluster.mongodb.net" cargo test --tests
 ```
 
 Run tests against a different local port:
 ```bash
-MONGODB_TEST_URI="mongodb://localhost:27018" cargo test -- --ignored
+MONGODB_TEST_URI="mongodb://localhost:27018" cargo test --tests
 ```
 
 ## Cleaning Up Test Databases
@@ -159,7 +167,7 @@ After running integration tests, test databases (matching the pattern `test_db_*
 
 **Run cleanup manually:**
 ```bash
-cargo test --test integration_test -- --ignored --nocapture zzz_cleanup_test_databases
+cargo test --test integration_test --nocapture zzz_cleanup_test_databases
 ```
 
 The `--nocapture` flag shows the cleanup progress output.
@@ -167,14 +175,14 @@ The `--nocapture` flag shows the cleanup progress output.
 **Run all tests with cleanup automatically at the end:**
 ```bash
 # Sequential execution ensures cleanup runs last
-cargo test --test integration_test -- --ignored --test-threads=1 --nocapture
+cargo test --test-threads=1 --nocapture
 ```
 
 **Or run tests then cleanup separately:**
 ```bash
-cargo test --test integration_test -- --ignored
+cargo test --tests
 # Then run cleanup:
-cargo test --test integration_test -- --ignored --nocapture zzz_cleanup_test_databases
+cargo test --test integration_test --nocapture zzz_cleanup_test_databases
 ```
 
 The cleanup function will:
@@ -194,10 +202,11 @@ The cleanup function will:
 
 **Test Selection:**
 ```bash
-cargo test                          # Run all non-ignored tests (unit tests)
-cargo test -- --ignored            # Run all tests including ignored ones
+cargo test                          # Run all tests (unit + integration, integration skips if MongoDB unavailable)
+cargo test --lib                    # Run only unit tests
+cargo test --tests                  # Run only integration tests
 cargo test test_name_pattern       # Run tests matching pattern
-cargo test --test integration_test # Run specific test suite
+cargo test --test integration_test # Run specific integration test suite
 ```
 
 **Output Control:**
@@ -232,35 +241,37 @@ cargo test --no-run                 # Compile tests but don't run them
 
 ## Complete Test Workflow
 
-**1. Run all tests (unit + integration):**
-```bash
-cargo test && cargo test -- --ignored
-```
-
-Note: There's no single cargo command to run both ignored and non-ignored tests together. The `&&` operator runs unit tests first, then integration tests if unit tests pass.
-
-**2. Run only unit tests:**
+**1. Run all tests (unit + integration, recommended):**
 ```bash
 cargo test
 ```
 
+Integration tests automatically skip if MongoDB is not available.
+
+**2. Run only unit tests:**
+```bash
+cargo test --lib
+```
+
 **3. Run only integration tests:**
 ```bash
-cargo test --test integration_test -- --ignored
+cargo test --tests
+# Or:
+cargo test --test integration_test
 ```
 
 **4. Run specific integration test:**
 ```bash
-cargo test --test integration_test -- --ignored test_insert_one_and_find_one
+cargo test --test integration_test test_insert_one_and_find_one
 ```
 
 **5. Clean up test databases:**
 ```bash
 # Run cleanup test (runs last alphabetically)
-cargo test --test integration_test -- --ignored --nocapture zzz_cleanup_test_databases
+cargo test --test integration_test --nocapture zzz_cleanup_test_databases
 
 # Or run all tests sequentially with cleanup at the end:
-cargo test --test integration_test -- --ignored --test-threads=1 --nocapture
+cargo test --test-threads=1 --nocapture
 ```
 
 ## CI/CD Considerations
@@ -276,11 +287,11 @@ cargo clippy --tests -- -D warnings
 # Unit tests (always run)
 cargo test
 
-# Integration tests (if MongoDB available)
-cargo test -- --ignored
+# Integration tests (if MongoDB available, otherwise they skip gracefully)
+cargo test --tests
 
 # Cleanup (optional, for CI environments - runs last when using --test-threads=1)
-cargo test --test integration_test -- --ignored --test-threads=1 zzz_cleanup_test_databases
+cargo test --test integration_test --test-threads=1 zzz_cleanup_test_databases
 ```
 
 ## Troubleshooting

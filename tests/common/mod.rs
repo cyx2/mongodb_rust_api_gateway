@@ -18,6 +18,24 @@ pub fn mongodb_test_uri() -> String {
     env::var("MONGODB_TEST_URI").unwrap_or_else(|_| "mongodb://localhost:27017".to_string())
 }
 
+pub async fn mongodb_available() -> bool {
+    let uri = mongodb_test_uri();
+    match Client::with_uri_str(&uri).await {
+        Ok(client) => {
+            // Try to ping the server
+            match client
+                .database("admin")
+                .run_command(mongodb::bson::doc! { "ping": 1 }, None)
+                .await
+            {
+                Ok(_) => true,
+                Err(_) => false,
+            }
+        }
+        Err(_) => false,
+    }
+}
+
 pub async fn test_state() -> AppState {
     let uri = mongodb_test_uri();
     let client = Client::with_uri_str(&uri)
