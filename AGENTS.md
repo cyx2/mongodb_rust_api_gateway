@@ -28,6 +28,8 @@ Expose REST endpoints that mirror the MongoDB Rust driver’s CRUD surface. Clie
 - `POST /api/v1/documents/delete-one|delete-many`: `{ database, collection, filter, options? }` → driver `DeleteResult`.
 - `GET /api/v1/collections?database=app`: list collections for discovery.
 
+Example request bodies for each operation live in `README.md` under **API Quick Reference**; keep those samples aligned with the shapes described above when endpoints evolve.
+
 ### Error Contract
 - `400` with `{ "error": "validation_error", "details": "..." }` for malformed payloads or missing identifiers.
 - `404` when single-document operations find no match.
